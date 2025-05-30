@@ -12,13 +12,8 @@ const extractGameIdFromUrl = (url) => {
 const getUniverseIdFromGameId = async (gameId) => {
   try {
     const response = await fetch(`https://games.roproxy.com/v1/games/multiget-place-details?placeIds=${gameId}`);
-    if (!response.ok) throw new Error('Failed to get Universe ID');
     const data = await response.json();
-    if (data.length > 0 && data[0].universeId) {
-      return data[0].universeId;
-    } else {
-      throw new Error('Universe ID not found');
-    }
+    return data[0].universeId;
   } catch (err) {
     console.error(err);
     return null;
@@ -28,25 +23,20 @@ const getUniverseIdFromGameId = async (gameId) => {
 const fetchGameData = async (universeId) => {
   try {
     const [gameRes, votesRes, favoritesRes] = await Promise.all([
-      fetch(`https://games.roblox.com/v1/games?universeIds=${universeId}`),
-      fetch(`https://games.roblox.com/v1/games/votes?universeIds=${universeId}`),
-      fetch(`https://games.roblox.com/v1/games/${universeId}/favorites/count`)
+      fetch(`https://games.roproxy.com/v1/games?universeIds=${universeId}`),
+      fetch(`https://games.roproxy.com/v1/games/votes?universeIds=${universeId}`),
+      fetch(`https://games.roproxy.com/v1/games/${universeId}/favorites/count`)
     ]);
 
     const gameData = await gameRes.json();
     const votesData = await votesRes.json();
     const favoritesData = await favoritesRes.json();
 
-    if (!gameData.data || gameData.data.length === 0) {
-      throw new Error('Game not found');
-    }
-
     return {
       id: universeId,
       name: gameData.data[0].name,
       playing: gameData.data[0].playing,
       likes: votesData.data[0].upVotes,
-      dislikes: votesData.data[0].downVotes,
       favorites: favoritesData.favoritesCount
     };
   } catch (error) {
@@ -131,22 +121,15 @@ const renderGameCard = (game) => {
   });
 };
 
-const addGame = async (gameUrl) => {
-  const gameId = extractGameIdFromUrl(gameUrl);
-  if (!gameId) {
-    alert('Invalid Roblox game URL.');
-    return;
-  }
+const addGame = async (url) => {
+  const gameId = extractGameIdFromUrl(url);
+  if (!gameId) return alert('Invalid Roblox game URL.');
 
   const universeId = await getUniverseIdFromGameId(gameId);
-  if (!universeId) {
-    alert('Failed to get Universe ID.');
-    return;
-  }
+  if (!universeId) return alert('Could not get Universe ID.');
 
   if (trackedGames.includes(universeId)) {
-    alert('Game already tracked.');
-    return;
+    return alert('Game already tracked.');
   }
 
   const gameData = await fetchGameData(universeId);
@@ -161,25 +144,21 @@ const removeGame = (universeId) => {
   trackedGames = trackedGames.filter(id => id !== universeId);
   localStorage.setItem('trackedGames', JSON.stringify(trackedGames));
   const card = document.getElementById(`game-${universeId}`);
-  if (card) {
-    gamesContainer.removeChild(card);
-  }
+  if (card) gamesContainer.removeChild(card);
 };
 
 const initialize = async () => {
   for (const universeId of trackedGames) {
     const gameData = await fetchGameData(universeId);
-    if (gameData) {
-      renderGameCard(gameData);
-    }
+    if (gameData) renderGameCard(gameData);
   }
 };
 
-addGameForm.addEventListener('submit', (e) => {
+addGameForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = universeIdInput.value.trim();
   if (url) {
-    addGame(url);
+    await addGame(url);
     universeIdInput.value = '';
   }
 });
