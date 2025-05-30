@@ -4,6 +4,23 @@ const gamesContainer = document.getElementById('gamesContainer');
 
 let trackedGames = JSON.parse(localStorage.getItem('trackedGames')) || [];
 
+const extractGameIdFromUrl = (url) => {
+  const match = url.match(/roblox\.com\/games\/(\d+)/);
+  return match ? match[1] : null;
+};
+
+const getUniverseIdFromGameId = async (gameId) => {
+  try {
+    const response = await fetch(`https://apis.roblox.com/universes/v1/places/${gameId}/universe`);
+    if (!response.ok) throw new Error('Failed to get Universe ID');
+    const data = await response.json();
+    return data.universeId;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+};
+
 const fetchGameData = async (universeId) => {
   try {
     const [gameRes, votesRes, favoritesRes] = await Promise.all([
@@ -30,7 +47,7 @@ const fetchGameData = async (universeId) => {
     };
   } catch (error) {
     console.error(error);
-    alert('Failed to fetch game data. Please check the Universe ID.');
+    alert('Failed to fetch game data.');
     return null;
   }
 };
@@ -110,7 +127,19 @@ const renderGameCard = (game) => {
   });
 };
 
-const addGame = async (universeId) => {
+const addGame = async (gameUrl) => {
+  const gameId = extractGameIdFromUrl(gameUrl);
+  if (!gameId) {
+    alert('Invalid Roblox game URL.');
+    return;
+  }
+
+  const universeId = await getUniverseIdFromGameId(gameId);
+  if (!universeId) {
+    alert('Failed to get Universe ID.');
+    return;
+  }
+
   if (trackedGames.includes(universeId)) {
     alert('Game already tracked.');
     return;
@@ -144,9 +173,9 @@ const initialize = async () => {
 
 addGameForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  const universeId = universeIdInput.value.trim();
-  if (universeId) {
-    addGame(universeId);
+  const url = universeIdInput.value.trim();
+  if (url) {
+    addGame(url);
     universeIdInput.value = '';
   }
 });
