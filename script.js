@@ -11,15 +11,20 @@ const extractGameIdFromUrl = (url) => {
 
 const getUniverseIdFromGameId = async (gameId) => {
   try {
-    const response = await fetch(`https://apis.roblox.com/universes/v1/places/${gameId}/universe`);
+    const response = await fetch(`https://games.roblox.com/v1/games?placeId=${gameId}`);
     if (!response.ok) throw new Error('Failed to get Universe ID');
     const data = await response.json();
-    return data.universeId;
+    if (data.data && data.data.length > 0) {
+      return data.data[0].universeId;
+    } else {
+      throw new Error('Game data not found');
+    }
   } catch (err) {
     console.error(err);
     return null;
   }
 };
+
 
 const fetchGameData = async (universeId) => {
   try {
